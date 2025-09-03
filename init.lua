@@ -607,6 +607,8 @@ require('lazy').setup({
             end
           end
 
+          vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
+
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
           --    See `:help CursorHold` for information about when this is executed
@@ -704,34 +706,36 @@ require('lazy').setup({
       local vtslsConfig = {
         capabilities = capabilities,
         settings = {
-          -- complete_function_calls = true,
+          complete_function_calls = true,
           vtsls = {
-            capabilities = capabilities,
-            -- enableMoveToFileCodeAction = true,
+            -- capabilities = capabilities,
+            enableMoveToFileCodeAction = true,
             -- autoUseWorkspaceTsdk = true,
-            -- experimental = {
-            --   maxInlayHintLength = 30,
-            --   completion = {
-            --     enableServerSideFuzzyMatch = true,
-            --   },
-            -- },
+            experimental = {
+              maxInlayHintLength = 30,
+              completion = {
+                enableServerSideFuzzyMatch = true,
+              },
+            },
+            typescript = {
+              updateImportsOnFileMove = { enabled = 'always' },
+              suggest = {
+                completeFunctionCalls = true,
+              },
+              inlayHints = {
+                enumMemberValues = { enabled = true },
+                functionLikeReturnTypes = { enabled = true },
+                parameterNames = { enabled = 'literals' },
+                parameterTypes = { enabled = true },
+                propertyDeclarationTypes = { enabled = true },
+                variableTypes = { enabled = false },
+              },
+            },
+
             tsserver = {
-              capabilities = capabilities,
               globalPlugins = {
                 vue_plugin,
               },
-              -- updateImportsOnFileMove = { enabled = 'always' },
-              -- suggest = {
-              --   completeFunctionCalls = true,
-              -- },
-              -- inlayHints = {
-              --   enumMemberValues = { enabled = true },
-              --   functionLikeReturnTypes = { enabled = true },
-              --   parameterNames = { enabled = 'literals' },
-              --   parameterTypes = { enabled = true },
-              --   propertyDeclarationTypes = { enabled = true },
-              --   variableTypes = { enabled = false },
-              -- },
             },
           },
         },
@@ -1046,10 +1050,35 @@ require('lazy').setup({
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
       --  and try some other statusline plugin
+      require('mini.git').setup()
+      require('mini.diff').setup()
+      require('mini.icons').setup()
       local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      -- statusline.setup { use_icons = vim.g.have_nerd_font }
+      local statuslineContent = function()
+        local mode, mode_hl = statusline.section_mode { trunc_width = 120 }
+        local git = statusline.section_git { trunc_width = 40 }
+        local diff = statusline.section_diff { trunc_width = 75 }
+        local diagnostics = statusline.section_diagnostics { trunc_width = 75 }
+        local lsp = statusline.section_lsp { trunc_width = 75 }
+        local filename = statusline.section_filename { trunc_width = 140 }
+        local fileinfo = statusline.section_fileinfo { trunc_width = 120 }
+        local location = statusline.section_location { trunc_width = 75 }
+        local search = statusline.section_searchcount { trunc_width = 75 }
 
+        return statusline.combine_groups {
+          { hl = mode_hl, strings = { mode } },
+          { hl = 'MiniStatuslineDevinfo', strings = { git, diff, diagnostics, lsp } },
+          '%<', -- Mark general truncate point
+          { hl = 'MiniStatuslineFilename', strings = { filename } },
+          '%=', -- End left alignment
+          { hl = 'MiniStatuslineFilename', strings = { require('noice').api.status.command.get() } },
+          { hl = 'MiniStatuslineFilename', strings = { require('noice').api.status.mode.get() } },
+          { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+          { hl = mode_hl, strings = { search, location } },
+        }
+      end
+      -- set use_icons to true if you have a Nerd Font
+      statusline.setup { use_icons = vim.g.have_nerd_font, content = { active = statuslineContent } }
       -- You can configure sections in the statusline by overriding their
       -- default behavior. For example, here we set the section for
       -- cursor location to LINE:COLUMN
@@ -1092,7 +1121,7 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'css', 'scss', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'regex', 'c', 'css', 'scss', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
