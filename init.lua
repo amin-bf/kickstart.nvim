@@ -607,8 +607,6 @@ require('lazy').setup({
             end
           end
 
-          vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
-
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
           --    See `:help CursorHold` for information about when this is executed
@@ -643,6 +641,7 @@ require('lazy').setup({
           --
           -- This may be unwanted, since they displace some of your code
           if client and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf) then
+            vim.notify 'LSP Inlay Hint is supported'
             map('<leader>th', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
@@ -725,7 +724,7 @@ require('lazy').setup({
               inlayHints = {
                 enumMemberValues = { enabled = true },
                 functionLikeReturnTypes = { enabled = true },
-                parameterNames = { enabled = 'literals' },
+                parameterNames = { enabled = 'all' },
                 parameterTypes = { enabled = true },
                 propertyDeclarationTypes = { enabled = true },
                 variableTypes = { enabled = false },
@@ -759,8 +758,8 @@ require('lazy').setup({
         -- ts_ls = {}
         css_variables = {},
         cssls = {},
-        vtsls = vtslsConfig,
-        vue_ls = {},
+        -- vtsls = vtslsConfig,
+        -- vue_ls = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -775,6 +774,19 @@ require('lazy').setup({
                 '$VIMRUNTIME',
                 '$XDG_DATA_HOME/nvim/lazy',
                 '${3rd}/luv/library',
+              },
+              inlayHints = {
+                enable = true,
+              },
+              telemetry = { enable = false },
+              hints = {
+                enable = true,
+                arrayIndex = 'Enable',
+                await = true,
+                paramName = 'All', -- "All", "Literal" or "None"
+                paramType = true,
+                semicolon = 'Disable',
+                setType = true,
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
@@ -858,6 +870,7 @@ require('lazy').setup({
         -- You can use 'stop_after_first' to run the first available formatter from the list
         javascript = { 'prettierd', 'prettier', stop_after_first = true },
         typescript = { 'prettierd', 'prettier', stop_after_first = true },
+        vue = { 'prettierd', 'prettier', stop_after_first = true },
       },
     },
   },
@@ -1000,9 +1013,20 @@ require('lazy').setup({
     config = function()
       ---@diagnostic disable-next-line: missing-fields
       require('tokyonight').setup {
-        transparent = false,
         styles = {
           comments = { italic = false }, -- Disable italics in comments
+        },
+        dim_inactive = true,
+        terminal_colors = true,
+        plugins = {
+          -- See `:help tokyonight-plugin-list`
+          -- for a list of plugins and their default settings.
+          cmp = true,
+          gitsigns = true,
+          neotree = true,
+          telescope = true,
+          which_key = true,
+          auto = true,
         },
       }
 
