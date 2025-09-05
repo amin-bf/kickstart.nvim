@@ -23,6 +23,7 @@ return {
           -- If you’re ESM/ts-jest with useESM, this helps in many setups:
           env = { CI = '1', NODE_OPTIONS = '--experimental-vm-modules' },
         },
+        ['rustaceanvim.neotest'] = {},
       },
       -- Example for loading neotest-golang with a custom config
       -- adapters = {

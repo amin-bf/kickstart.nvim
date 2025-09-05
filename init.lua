@@ -646,6 +646,10 @@ require('lazy').setup({
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
           end
+          if client and client:supports_method 'textDocument/inlayHint' then
+            vim.notify 'LSP Inlay Hint is supported'
+            vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
+          end
         end,
       })
 
@@ -716,25 +720,34 @@ require('lazy').setup({
                 enableServerSideFuzzyMatch = true,
               },
             },
-            typescript = {
-              updateImportsOnFileMove = { enabled = 'always' },
-              suggest = {
-                completeFunctionCalls = true,
-              },
-              inlayHints = {
-                enumMemberValues = { enabled = true },
-                functionLikeReturnTypes = { enabled = true },
-                parameterNames = { enabled = 'all' },
-                parameterTypes = { enabled = true },
-                propertyDeclarationTypes = { enabled = true },
-                variableTypes = { enabled = false },
-              },
-            },
-
             tsserver = {
               globalPlugins = {
                 vue_plugin,
               },
+            },
+          },
+          typescript = {
+            updateImportsOnFileMove = { enabled = 'always' },
+            suggest = {
+              completeFunctionCalls = true,
+            },
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterNames = { enabled = 'all' },
+              parameterTypes = { enabled = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = false },
+            },
+          },
+          javascript = {
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterNames = { enabled = 'all' },
+              parameterTypes = { enabled = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = true },
             },
           },
         },
@@ -743,6 +756,11 @@ require('lazy').setup({
       vim.lsp.config('vtsls', vtslsConfig)
       vim.lsp.config('vue_ls', { capabilities = capabilities })
       vim.lsp.enable { 'vtsls', 'vue_ls' }
+      vim.lsp.config.bashls = {
+        cmd = { 'bash-language-server', 'start' },
+        filetypes = { 'bash', 'sh' },
+      }
+      vim.lsp.enable 'bashls'
 
       local servers = {
         -- clangd = {},
@@ -756,6 +774,7 @@ require('lazy').setup({
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {}
+        codelldb = {},
         css_variables = {},
         cssls = {},
         -- vtsls = vtslsConfig,
@@ -764,7 +783,7 @@ require('lazy').setup({
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
-          -- capabilities = {},
+          capabilities,
           settings = {
             Lua = {
               completion = {
@@ -775,18 +794,16 @@ require('lazy').setup({
                 '$XDG_DATA_HOME/nvim/lazy',
                 '${3rd}/luv/library',
               },
-              inlayHints = {
-                enable = true,
-              },
               telemetry = { enable = false },
-              hints = {
+              hint = {
                 enable = true,
-                arrayIndex = 'Enable',
-                await = true,
-                paramName = 'All', -- "All", "Literal" or "None"
+                -- optional fine-tuning:
+                setType = true,
+                arrayIndex = 'Auto', -- "Enable" | "Disable" | "Auto"
+                paramName = 'All', -- "All" | "Literal" | "Disable"
                 paramType = true,
                 semicolon = 'Disable',
-                setType = true,
+                unknown = true,
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
@@ -812,6 +829,9 @@ require('lazy').setup({
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
         'markdownlint',
+        'bashls',
+        'shfmt',
+        'rust-analyzer',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -871,6 +891,8 @@ require('lazy').setup({
         javascript = { 'prettierd', 'prettier', stop_after_first = true },
         typescript = { 'prettierd', 'prettier', stop_after_first = true },
         vue = { 'prettierd', 'prettier', stop_after_first = true },
+        bash = { 'shfmt', stop_after_first = true },
+        sh = { 'shfmt', stop_after_first = true },
       },
     },
   },
@@ -1145,7 +1167,24 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'regex', 'c', 'css', 'scss', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = {
+        'rust',
+        'ron',
+        'bash',
+        'regex',
+        'c',
+        'css',
+        'scss',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+      },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
