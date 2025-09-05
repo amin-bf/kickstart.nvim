@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -102,13 +102,13 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
 
 -- Don't show the mode, since it's already in the status line
-vim.o.showmode = false
+vim.o.showmode = true
 
 -- Sync clipboard between OS and Neovim.
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
@@ -140,6 +140,19 @@ vim.o.timeoutlen = 300
 -- Configure how new splits should be opened
 vim.o.splitright = true
 vim.o.splitbelow = true
+vim.o.wrap = false
+
+vim.o.shiftwidth = 2
+vim.o.tabstop = 2
+vim.o.expandtab = true
+vim.o.smartindent = true
+vim.o.autoindent = true
+vim.o.shiftround = true
+
+vim.o.foldcolumn = '1' -- '0' is not bad
+vim.o.foldlevel = 99 -- Using ufo provider need a large value, feel free to decrease the value
+vim.o.foldlevelstart = 99
+vim.o.foldenable = true
 
 -- Sets how neovim will display certain whitespace characters in the editor.
 --  See `:help 'list'`
@@ -165,6 +178,7 @@ vim.o.scrolloff = 10
 -- instead raise a dialog asking if you wish to save the current file(s)
 -- See `:help 'confirm'`
 vim.o.confirm = true
+vim.opt.sessionoptions = { 'buffers', 'curdir', 'tabpages', 'winsize', 'help', 'globals', 'skiprtp', 'folds' }
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -174,7 +188,7 @@ vim.o.confirm = true
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
 -- Diagnostic keymaps
-vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<leader>cq', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -281,6 +295,14 @@ require('lazy').setup({
         topdelete = { text = '‾' },
         changedelete = { text = '~' },
       },
+      signs_staged = {
+        add = { text = '+' },
+        change = { text = '~' },
+        delete = { text = '_' },
+        topdelete = { text = '‾' },
+        changedelete = { text = '~' },
+      },
+      signs_staged_enable = true,
     },
   },
 
@@ -619,9 +641,14 @@ require('lazy').setup({
           --
           -- This may be unwanted, since they displace some of your code
           if client and client_supports_method(client, vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf) then
+            vim.notify 'LSP Inlay Hint is supported'
             map('<leader>th', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
+          end
+          if client and client:supports_method 'textDocument/inlayHint' then
+            vim.notify 'LSP Inlay Hint is supported'
+            vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
           end
         end,
       })
@@ -670,6 +697,71 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local vue_language_server_path = vim.fn.stdpath 'data' .. '/mason/packages/vue-language-server/node_modules/@vue/language-server'
+      local tsserver_filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue' }
+      local vue_plugin = {
+        name = '@vue/typescript-plugin',
+        location = vue_language_server_path,
+        languages = { 'vue' },
+        configNamespace = 'typescript',
+      }
+      ---@type vim.lsp.Config
+      local vtslsConfig = {
+        capabilities = capabilities,
+        settings = {
+          complete_function_calls = true,
+          vtsls = {
+            -- capabilities = capabilities,
+            enableMoveToFileCodeAction = true,
+            -- autoUseWorkspaceTsdk = true,
+            experimental = {
+              maxInlayHintLength = 30,
+              completion = {
+                enableServerSideFuzzyMatch = true,
+              },
+            },
+            tsserver = {
+              globalPlugins = {
+                vue_plugin,
+              },
+            },
+          },
+          typescript = {
+            updateImportsOnFileMove = { enabled = 'always' },
+            suggest = {
+              completeFunctionCalls = true,
+            },
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterNames = { enabled = 'all' },
+              parameterTypes = { enabled = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = false },
+            },
+          },
+          javascript = {
+            inlayHints = {
+              enumMemberValues = { enabled = true },
+              functionLikeReturnTypes = { enabled = true },
+              parameterNames = { enabled = 'all' },
+              parameterTypes = { enabled = true },
+              propertyDeclarationTypes = { enabled = true },
+              variableTypes = { enabled = true },
+            },
+          },
+        },
+        filetypes = tsserver_filetypes,
+      }
+      vim.lsp.config('vtsls', vtslsConfig)
+      vim.lsp.config('vue_ls', { capabilities = capabilities })
+      vim.lsp.enable { 'vtsls', 'vue_ls' }
+      vim.lsp.config.bashls = {
+        cmd = { 'bash-language-server', 'start' },
+        filetypes = { 'bash', 'sh' },
+      }
+      vim.lsp.enable 'bashls'
+
       local servers = {
         -- clangd = {},
         -- gopls = {},
@@ -681,17 +773,37 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
-        --
+        -- ts_ls = {}
+        codelldb = {},
+        css_variables = {},
+        cssls = {},
+        -- vtsls = vtslsConfig,
+        -- vue_ls = {},
 
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
-          -- capabilities = {},
+          capabilities,
           settings = {
             Lua = {
               completion = {
                 callSnippet = 'Replace',
+              },
+              library = {
+                '$VIMRUNTIME',
+                '$XDG_DATA_HOME/nvim/lazy',
+                '${3rd}/luv/library',
+              },
+              telemetry = { enable = false },
+              hint = {
+                enable = true,
+                -- optional fine-tuning:
+                setType = true,
+                arrayIndex = 'Auto', -- "Enable" | "Disable" | "Auto"
+                paramName = 'All', -- "All" | "Literal" | "Disable"
+                paramType = true,
+                semicolon = 'Disable',
+                unknown = true,
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
@@ -716,6 +828,10 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'markdownlint',
+        'bashls',
+        'shfmt',
+        'rust-analyzer',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -772,7 +888,11 @@ require('lazy').setup({
         -- python = { "isort", "black" },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        javascript = { 'prettierd', 'prettier', stop_after_first = true },
+        typescript = { 'prettierd', 'prettier', stop_after_first = true },
+        vue = { 'prettierd', 'prettier', stop_after_first = true },
+        bash = { 'shfmt', stop_after_first = true },
+        sh = { 'shfmt', stop_after_first = true },
       },
     },
   },
@@ -783,6 +903,10 @@ require('lazy').setup({
     version = '1.*',
     dependencies = {
       -- Snippet Engine
+      'hrsh7th/nvim-cmp',
+      'hrsh7th/cmp-buffer',
+      'hrsh7th/cmp-path',
+      'giuxtaposition/blink-cmp-copilot',
       {
         'L3MON4D3/LuaSnip',
         version = '2.*',
@@ -835,7 +959,23 @@ require('lazy').setup({
         -- <c-k>: Toggle signature help
         --
         -- See :h blink-cmp-config-keymap for defining your own keymap
-        preset = 'default',
+        preset = 'none',
+        ['<C-space>'] = { 'show', 'show_documentation', 'hide_documentation' },
+        ['<C-e>'] = { 'hide' },
+        ['<C-y>'] = { 'select_and_accept' },
+
+        ['<Up>'] = { 'select_prev', 'fallback' },
+        ['<Down>'] = { 'select_next', 'fallback' },
+        ['<C-p>'] = { 'select_prev', 'fallback_to_mappings' },
+        ['<C-n>'] = { 'select_next', 'fallback_to_mappings' },
+
+        ['<C-b>'] = { 'scroll_documentation_up', 'fallback' },
+        ['<C-f>'] = { 'scroll_documentation_down', 'fallback' },
+
+        ['<Tab>'] = { 'snippet_forward', 'fallback' },
+        ['<S-Tab>'] = { 'snippet_backward', 'fallback' },
+
+        ['<C-c>'] = { 'show_signature', 'hide_signature', 'fallback' },
 
         -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
         --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -854,9 +994,19 @@ require('lazy').setup({
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        default = { 'copilot', 'lsp', 'path', 'snippets', 'lazydev', 'buffer' },
         providers = {
           lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          copilot = {
+            name = 'copilot',
+            module = 'blink-cmp-copilot',
+            kind = 'Copilot',
+            score_offset = 100,
+            async = true,
+          },
+          buffer = { name = 'buffer' },
+          path = { name = 'path' },
+          snippets = { name = 'snippets' },
         },
       },
 
@@ -875,7 +1025,6 @@ require('lazy').setup({
       signature = { enabled = true },
     },
   },
-
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
@@ -889,6 +1038,18 @@ require('lazy').setup({
         styles = {
           comments = { italic = false }, -- Disable italics in comments
         },
+        dim_inactive = true,
+        terminal_colors = true,
+        plugins = {
+          -- See `:help tokyonight-plugin-list`
+          -- for a list of plugins and their default settings.
+          cmp = true,
+          gitsigns = true,
+          neotree = true,
+          telescope = true,
+          which_key = true,
+          auto = true,
+        },
       }
 
       -- Load the colorscheme here.
@@ -899,7 +1060,7 @@ require('lazy').setup({
   },
 
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = true } },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -917,15 +1078,53 @@ require('lazy').setup({
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      require('mini.surround').setup {
+        mappings = {
+          add = 'sa', -- Add surrounding in Normal and Visual modes
+          delete = 'sd', -- Delete surrounding
+          find = 'sf', -- Find surrounding (to the right)
+          find_left = 'sF', -- Find surrounding (to the left)
+          highlight = 'sh', -- Highlight surrounding
+          replace = 'sr', -- Replace surrounding
+          update_n_lines = 'sn', -- Update `n_lines`
+
+          suffix_last = 'l', -- Suffix to search with "prev" method
+          suffix_next = 'n', -- Suffix to search with "next" method
+        },
+      }
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
       --  and try some other statusline plugin
+      require('mini.git').setup()
+      require('mini.diff').setup()
+      require('mini.icons').setup()
       local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
+      local statuslineContent = function()
+        local mode, mode_hl = statusline.section_mode { trunc_width = 120 }
+        local git = statusline.section_git { trunc_width = 40 }
+        local diff = statusline.section_diff { trunc_width = 75 }
+        local diagnostics = statusline.section_diagnostics { trunc_width = 75 }
+        local lsp = statusline.section_lsp { trunc_width = 75 }
+        local filename = statusline.section_filename { trunc_width = 140 }
+        local fileinfo = statusline.section_fileinfo { trunc_width = 120 }
+        local location = statusline.section_location { trunc_width = 75 }
+        local search = statusline.section_searchcount { trunc_width = 75 }
 
+        return statusline.combine_groups {
+          { hl = mode_hl, strings = { mode } },
+          { hl = 'MiniStatuslineDevinfo', strings = { git, diff, diagnostics, lsp } },
+          '%<', -- Mark general truncate point
+          { hl = 'MiniStatuslineFilename', strings = { filename } },
+          '%=', -- End left alignment
+          { hl = 'MiniStatuslineFilename', strings = { require('noice').api.status.command.get() } },
+          { hl = 'MiniStatuslineFilename', strings = { require('noice').api.status.mode.get() } },
+          { hl = 'MiniStatuslineFileinfo', strings = { fileinfo } },
+          { hl = mode_hl, strings = { search, location } },
+        }
+      end
+      -- set use_icons to true if you have a Nerd Font
+      statusline.setup { use_icons = vim.g.have_nerd_font, content = { active = statuslineContent } }
       -- You can configure sections in the statusline by overriding their
       -- default behavior. For example, here we set the section for
       -- cursor location to LINE:COLUMN
@@ -933,6 +1132,30 @@ require('lazy').setup({
       statusline.section_location = function()
         return '%2l:%-2v'
       end
+
+      require('mini.animate').setup()
+      require('mini.move').setup()
+      require('mini.bracketed').setup()
+      require('mini.bufremove').setup()
+      require('mini.extra').setup()
+      local hipatterns = require 'mini.hipatterns'
+      hipatterns.setup {
+        highlighters = {
+          -- Highlight standalone 'FIXME', 'HACK', 'TODO', 'NOTE'
+          -- fixme = { pattern = '%f[%w]()FIXME()%f[%W]', group = 'MiniHipatternsFixme' },
+          -- hack = { pattern = '%f[%w]()HACK()%f[%W]', group = 'MiniHipatternsHack' },
+          -- todo = { pattern = '%f[%w]()TODO()%f[%W]', group = 'MiniHipatternsTodo' },
+          -- note = { pattern = '%f[%w]()NOTE()%f[%W]', group = 'MiniHipatternsNote' },
+
+          -- Highlight hex color strings (`#rrggbb`) using that color
+          hex_color = hipatterns.gen_highlighter.hex_color(),
+        },
+      }
+      -- require('mini.basics').setup {
+      --   options = {
+      --     win_borders = 'single',
+      --   },
+      -- }
 
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
@@ -944,7 +1167,24 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = {
+        'rust',
+        'ron',
+        'bash',
+        'regex',
+        'c',
+        'css',
+        'scss',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+      },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -973,18 +1213,18 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.indent_line',
+  require 'kickstart.plugins.lint',
+  require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
@@ -1014,3 +1254,30 @@ require('lazy').setup({
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+require 'custom.config.mappings'
+require 'custom.config.autocommand'
+--
+-- Give borders to LSP hover and signature help
+-- one place to tweak the style
+local BORDER = 'rounded'
+
+-- 1) Diagnostics float (e.g. `vim.diagnostic.open_float`)
+vim.diagnostic.config {
+  float = { border = BORDER },
+}
+
+-- 2) LSP hover on <S-K> (or K) with border
+vim.lsp.handlers['textDocument/hover'] = function(err, result, ctx, config)
+  config = config or {}
+  config.border = config.border or BORDER
+  return vim.lsp.handlers.hover(err, result, ctx, config)
+end
+
+-- 3) LSP signature help with border
+vim.lsp.handlers['textDocument/signatureHelp'] = function(err, result, ctx, config)
+  config = config or {}
+  config.border = config.border or BORDER
+  return vim.lsp.handlers.signature_help(err, result, ctx, config)
+end
+vim.keymap.set('n', 'K', vim.lsp.buf.hover, { silent = true, buffer = false })
+vim.o.winborder = 'rounded'
